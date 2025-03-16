@@ -15,7 +15,7 @@ public class Main {
         runExample(new EchoCommandExample(reg, restReg), "-n 123 \\n", context);
         runExample(new AddCommandExample(reg, restReg), "10 20", context);
         runExample(new AddCommandExample(reg, restReg), "-s500 10 50", context);
-        runExample(new AddCommandExample(reg, restReg), "10 20 -- -800", context);
+        runExample(new AddCommandExample(reg, restReg), "10 20 -800", context);
     }
 
     @SuppressWarnings("unchecked")

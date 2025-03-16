@@ -32,8 +32,11 @@ public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<
                     for (int index = 1; index < arg.length(); index++) {
                         var name = String.valueOf(arg.charAt(index));
                         var flag = arguments.flags.get(name);
-                        if (flag == null)
-                            throw new ParseError(new AbstractMessage.StringMessage("Can't find flag '" + name + "'"));
+                        if (flag == null) {
+                            if (index != 1)
+                                throw new ParseError(new AbstractMessage.StringMessage("Can't find flag '" + name + "'"));
+                            break;
+                        }
 
                         if (flag.annotation().action().equals(Flag.Action.StoreTrue)) {
                             var field = clazz.getField(name);
@@ -44,32 +47,34 @@ public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<
                             var value = arg.substring(index + 1);
                             var result = flag.argument().parseSimple(value, context);
                             field.set(argList, result);
+                            arg = "";
                             break;
                         }
                         else
                             throw new ParseError(new AbstractMessage.StringMessage("Internal flag store error"));
                     }
+                    if (arg.isEmpty())
+                        continue;
                 }
-                else {
-                    if (nextArgument == null || !nextArgument.annotation().vararg()) {
-                        if (!argIterator.hasNext())
-                            throw new ParseError(new AbstractMessage.StringMessage("Unexpected argument '" + arg + "'"));
-                        nextArgument = argIterator.next();
-                    }
 
-                    var result = nextArgument.argument().parseSimple(arg, context);
-                    var field = clazz.getField(nextArgument.name());
+                if (nextArgument == null || !nextArgument.annotation().vararg()) {
+                    if (!argIterator.hasNext())
+                        throw new ParseError(new AbstractMessage.StringMessage("Unexpected argument '" + arg + "'"));
+                    nextArgument = argIterator.next();
+                }
 
-                    if (nextArgument.restrictions() != null)
-                        for (var rest : nextArgument.restrictions())
-                            rest.assertRestriction(result, context);
+                var result = nextArgument.argument().parseSimple(arg, context);
+                var field = clazz.getField(nextArgument.name());
 
-                    if (nextArgument.annotation().vararg()) {
-                        varargs.add(result);
-                    } else {
-                        field.setAccessible(true);
-                        field.set(argList, result);
-                    }
+                if (nextArgument.restrictions() != null)
+                    for (var rest : nextArgument.restrictions())
+                        rest.assertRestriction(result, context);
+
+                if (nextArgument.annotation().vararg()) {
+                    varargs.add(result);
+                } else {
+                    field.setAccessible(true);
+                    field.set(argList, result);
                 }
             }
 
