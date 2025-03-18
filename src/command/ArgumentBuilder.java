@@ -33,23 +33,8 @@ public class ArgumentBuilder
                     var annotations = field.getAnnotationsByType(ArgumentRestriction.class);
                     List<AbstractArgumentRestriction<?>> restrictionsList = new ArrayList<>();
                     for (var annotation : annotations) {
-                        var restName = annotation.restriction().split(" ")[0];
-                        @SuppressWarnings("unchecked")
-                        var factory = (AbstractRestrictionFactory<Object>)restrictionsRegistry.getRestriction(restName);
-                        var argParser = new SimpleCommandParser<>();
-                        Object parsed = null;
-
-                        try {
-                            var context = new AbstractExecutionContext();
-                            context.executor = "<ArgumentBuilder>";
-                            var args = annotation.restriction().substring(restName.length() + 1).split(" ");
-                            parsed = argParser.parseSimple(args, factory.getArgumentList(), context);
-                        }
-                        catch (ParseError e) {
-                            throw new RuntimeException(e);
-                        }
-
-                        restrictionsList.add(factory.execute(parsed));
+                        restrictionsList.add((AbstractArgumentRestriction<?>)
+                                AbstractRestrictionFactory.execute(annotation.restriction(), registry, restrictionsRegistry));
                     }
                     restrictions = restrictionsList.toArray(new AbstractArgumentRestriction[] {});
                 }
