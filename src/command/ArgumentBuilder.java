@@ -1,15 +1,13 @@
 package command;
 
+import argument.*;
+import argument.arguments.ArgumentRegistry;
+import argument.restrictions.AbstractRestrictionFactory;
+import argument.restrictions.ArgumentRestrictionRegistry;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-
-import argument.*;
-import argument.arguments.ArgumentRegistry;
-import argument.restrictions.ArgumentRestrictionRegistry;
-import argument.restrictions.AbstractRestrictionFactory;
-import util.AbstractExecutionContext;
-import util.ParseError;
 
 
 public class ArgumentBuilder

@@ -1,8 +1,8 @@
 package examples;
 
-import argument.arguments.ArgumentRegistry;
-import argument.Flag;
 import argument.Argument;
+import argument.Flag;
+import argument.arguments.ArgumentRegistry;
 import argument.restrictions.ArgumentRestrictionRegistry;
 import command.AbstractCommand;
 import util.AbstractExecutionContext;

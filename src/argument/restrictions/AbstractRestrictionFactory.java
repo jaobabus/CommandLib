@@ -1,7 +1,6 @@
 package argument.restrictions;
 
 import argument.AbstractArgumentRestriction;
-import argument.ArgumentRestriction;
 import argument.arguments.ArgumentRegistry;
 import argument.arguments.DefaultArguments;
 import command.ArgumentBuilder;

@@ -1,11 +1,10 @@
 package command;
 
-import argument.AbstractArgument;
 import argument.arguments.ArgumentRegistry;
+import argument.restrictions.ArgumentRestrictionRegistry;
 import util.AbstractExecutionContext;
 import util.AbstractMessage;
 import util.GenericGetter;
-import argument.restrictions.ArgumentRestrictionRegistry;
 
 
 public interface AbstractCommand<ArgumentList>

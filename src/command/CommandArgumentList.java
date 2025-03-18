@@ -1,6 +1,9 @@
 package command;
 
-import argument.*;
+import argument.AbstractArgument;
+import argument.AbstractArgumentRestriction;
+import argument.Argument;
+import argument.Flag;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,12 +15,12 @@ public abstract class CommandArgumentList
 {
     public record FlagPair (AbstractArgument<?> argument,
                             Flag annotation,
-                            AbstractArgumentRestriction[] restrictions) {}
+                            AbstractArgumentRestriction<?>[] restrictions) {}
 
     public record ArgPair (String name,
                            AbstractArgument<?> argument,
                            Argument annotation,
-                           AbstractArgumentRestriction[] restrictions) {}
+                           AbstractArgumentRestriction<?>[] restrictions) {}
 
     public final Map<String, FlagPair> flags = new HashMap<String, FlagPair>();
     public final List<ArgPair> arguments = new ArrayList<>();

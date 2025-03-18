@@ -1,9 +1,9 @@
 package command;
 
-import java.util.List;
-
 import util.AbstractExecutionContext;
 import util.ParseError;
+
+import java.util.List;
 
 
 public interface AbstractCommandParser<ArgumentList>

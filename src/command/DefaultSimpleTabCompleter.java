@@ -1,13 +1,15 @@
 package command;
 
+import argument.AbstractArgument;
+import argument.AbstractArgumentRestriction;
+import argument.Flag;
+import util.AbstractExecutionContext;
+import util.ParseError;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import argument.AbstractArgument;
-import argument.Flag;
-import util.AbstractExecutionContext;
 
 
 public class DefaultSimpleTabCompleter
@@ -99,6 +101,7 @@ public class DefaultSimpleTabCompleter
         }
     }
 
+    @SuppressWarnings("unchecked")
     private TabCompleteParsedArgumentResult newParsedResult(String source,
                                                             AbstractExecutionContext context,
                                                             TabCompleteData storage,
@@ -117,9 +120,28 @@ public class DefaultSimpleTabCompleter
             }
             else if (arguments.flags.containsKey(String.valueOf(source.charAt(1)))
                     && storage.argumentOnlyTokenAt > parsedIndex) {
-                return new TabCompleteParsedArgumentResult(source, arguments.flags.get(String.valueOf(source.charAt(1))).argument(), true, false);
+                try{
+                    var arg = arguments.flags.get(String.valueOf(source.charAt(1)));
+                    for (var rest : arg.restrictions()) {
+                        var parsed = arg.argument().parseSimple(source.substring(2), context);
+                        ((AbstractArgumentRestriction<Object>)rest).assertRestriction(parsed, context);
+                    }
+                    return new TabCompleteParsedArgumentResult(source, arg.argument(), true, false);
+                } catch (ParseError e) {
+                    return new TabCompleteParsedArgumentResult(source, null, false, false);
+                }
             }
         }
-        return new TabCompleteParsedArgumentResult(source, arguments.arguments.get(argumentIndex).argument(), true, true);
+
+        try {
+            var arg = arguments.arguments.get(argumentIndex);
+            for (var rest : arg.restrictions()) {
+                var parsed = arg.argument().parseSimple(source, context);
+                ((AbstractArgumentRestriction<Object>)rest).assertRestriction(parsed, context);
+            }
+            return new TabCompleteParsedArgumentResult(source, arg.argument(), true, true);
+        } catch (ParseError e) {
+            return new TabCompleteParsedArgumentResult(source, null, false, true);
+        }
     }
 }

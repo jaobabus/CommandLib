@@ -1,14 +1,13 @@
 package command;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
-
-import argument.AbstractArgument;
+import argument.AbstractArgumentRestriction;
 import argument.Flag;
 import util.AbstractExecutionContext;
 import util.AbstractMessage;
 import util.ParseError;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<ArgumentList>
@@ -68,7 +67,7 @@ public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<
 
                 if (nextArgument.restrictions() != null)
                     for (var rest : nextArgument.restrictions())
-                        rest.assertRestriction(result, context);
+                        ((AbstractArgumentRestriction<Object>)rest).assertRestriction(result, context);
 
                 if (nextArgument.annotation().vararg()) {
                     varargs.add(result);

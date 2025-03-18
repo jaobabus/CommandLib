@@ -1,9 +1,6 @@
 import argument.arguments.DefaultArguments;
 import argument.restrictions.DefaultRestrictions;
-import command.AbstractCommand;
 import command.CommandBuilder;
-import examples.AddCommandExample;
-import examples.EchoCommandExample;
 import util.AbstractExecutionContext;
 import util.ParseError;
 

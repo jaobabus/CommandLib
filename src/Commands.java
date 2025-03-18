@@ -1,5 +1,4 @@
 import command.Command;
-import command.CommandRestriction;
 import examples.AddCommandExample;
 import examples.EchoCommandExample;
 
