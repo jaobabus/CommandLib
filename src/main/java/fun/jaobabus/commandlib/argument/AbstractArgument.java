@@ -23,26 +23,6 @@ public interface AbstractArgument<ArgumentType>
 
     ParseMode getParseMode();
 
-    /* getPhase, getShortUsage, getHelp used for help
-      Expected usage
-          Help:
-            echo [-n] <string>...
-          Usage:
-            echo -n Some string
-          Arguments:
-            -n - No newline
-            <string> - Any string
-     */
-
-    // example: '<string>'
-    String getPhase();
-
-    // example: 'Some string'
-    String getShortUsage();
-
-    // example: 'Any string'
-    AbstractMessage getHelp();
-
     /// tapComplete
     /// @param fragment fragment of argument
     /// @param context execution context

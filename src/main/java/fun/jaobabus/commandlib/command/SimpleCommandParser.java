@@ -1,7 +1,8 @@
 package fun.jaobabus.commandlib.command;
 
 import fun.jaobabus.commandlib.argument.AbstractArgumentRestriction;
-import fun.jaobabus.commandlib.argument.Flag;
+import fun.jaobabus.commandlib.argument.Argument;
+import fun.jaobabus.commandlib.argument.ArgumentDescriptor;
 import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.ParseError;
@@ -18,11 +19,20 @@ public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<
         ArgumentList argList = (ArgumentList) arguments.newInstance();
 
         boolean allowFlags = true;
-        CommandArgumentList.ArgPair nextArgument = null;
+        ArgumentDescriptor nextArgument = null;
         List<Object> varargs = new ArrayList<>();
         try {
             var argIterator = arguments.arguments.iterator();
             Class<ArgumentList> clazz = (Class<ArgumentList>) arguments.getType();
+
+            for (var flagKey : arguments.flags.keySet()) {
+                var flag = arguments.flags.get(flagKey);
+                if (flag.action.equals(Argument.Action.FlagStoreTrue)) {
+                    var field = clazz.getField(flagKey);
+                    field.set(argList, false);
+                }
+            }
+
             for (var arg : args) {
                 if (arg.equals("--")) {
                     allowFlags = false;
@@ -37,14 +47,14 @@ public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<
                             break;
                         }
 
-                        if (flag.annotation().action().equals(Flag.Action.StoreTrue)) {
+                        if (flag.action.equals(Argument.Action.FlagStoreTrue)) {
                             var field = clazz.getField(name);
                             field.set(argList, true);
                         }
-                        else if (flag.annotation().action().equals(Flag.Action.StoreValue)) {
+                        else if (flag.action.equals(Argument.Action.FlagStoreValue)) {
                             var field = clazz.getField(name);
                             var value = arg.substring(index + 1);
-                            var result = flag.argument().parseSimple(value, context);
+                            var result = flag.argument.parseSimple(value, context);
                             field.set(argList, result);
                             arg = "";
                             break;
@@ -56,20 +66,20 @@ public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<
                         continue;
                 }
 
-                if (nextArgument == null || !nextArgument.annotation().vararg()) {
+                if (nextArgument == null || !nextArgument.action.equals(Argument.Action.VarArg)) {
                     if (!argIterator.hasNext())
                         throw new ParseError(new AbstractMessage.StringMessage("Unexpected argument '" + arg + "'"));
                     nextArgument = argIterator.next();
                 }
 
-                var result = nextArgument.argument().parseSimple(arg, context);
-                var field = clazz.getField(nextArgument.name());
+                var result = nextArgument.argument.parseSimple(arg, context);
+                var field = clazz.getField(nextArgument.name);
 
-                if (nextArgument.restrictions() != null)
-                    for (var rest : nextArgument.restrictions())
+                if (!nextArgument.restrictions.isEmpty())
+                    for (var rest : nextArgument.restrictions)
                         ((AbstractArgumentRestriction<Object>)rest).assertRestriction(result, context);
 
-                if (nextArgument.annotation().vararg()) {
+                if (nextArgument.action.equals(Argument.Action.VarArg)) {
                     varargs.add(result);
                 } else {
                     field.setAccessible(true);
@@ -79,12 +89,12 @@ public class SimpleCommandParser<ArgumentList> implements AbstractCommandParser<
 
             if (argIterator.hasNext()) {
                 nextArgument = argIterator.next();
-                if (!nextArgument.annotation().optional() && !nextArgument.annotation().vararg())
-                    throw new ParseError(new AbstractMessage.StringMessage("Expected argument " + nextArgument.name()));
+                if (nextArgument.action == Argument.Action.Optional || nextArgument.action == Argument.Action.VarArg)
+                    throw new ParseError(new AbstractMessage.StringMessage("Expected argument " + nextArgument.name));
             }
 
-            if (nextArgument != null && nextArgument.annotation().vararg()) {
-                var field = clazz.getField(nextArgument.name());
+            if (nextArgument != null && nextArgument.action == Argument.Action.VarArg) {
+                var field = clazz.getField(nextArgument.name);
                 field.setAccessible(true);
                 var original = java.lang.reflect.Array.newInstance(field.getType().getComponentType(), 0);
                 field.set(argList, varargs.toArray((Object[])original));

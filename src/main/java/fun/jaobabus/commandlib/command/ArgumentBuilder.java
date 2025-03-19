@@ -10,70 +10,111 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class ArgumentBuilder
+public class ArgumentBuilder<ArgumentList>
 {
-    public static <ArgumentList> CommandArgumentList build(Class<ArgumentList> clazz,
-                                                           ArgumentRegistry registry,
-                                                           ArgumentRestrictionRegistry restrictionsRegistry)
+    private final List<ArgumentDescriptor> originalStream;
+    private final Class<ArgumentList> clazz;
+
+    public ArgumentBuilder(Class<ArgumentList> clazz)
     {
-        CommandArgumentList argList = createArgumentList(clazz);
+        originalStream = new ArrayList<>(clazz.getFields().length);
+        this.clazz = clazz;
+    }
+
+    public void fillOriginalStream(ArgumentRegistry registry,
+                                   ArgumentRestrictionRegistry restrictionsRegistry)
+    {
+        for (Field field : clazz.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Argument.class))
+                originalStream.add(parseArgument(field, registry, restrictionsRegistry));
+        }
+    }
+
+    public List<ArgumentDescriptor> getOriginalStream() {
+        return originalStream;
+    }
+
+    public CommandArgumentList build()
+    {
+        CommandArgumentList argList = createArgumentList();
 
         boolean optionalReached = false;
         boolean varargReached = false;
-        for (Field field : clazz.getDeclaredFields()) {
-
-            if (field.isAnnotationPresent(Flag.class) || field.isAnnotationPresent(Argument.class)) {
-                String name = field.getName();
-
-                AbstractArgumentRestriction<?>[] restrictions = null;
-
-                if (field.isAnnotationPresent(ArgumentRestriction.class)) {
-                    var annotations = field.getAnnotationsByType(ArgumentRestriction.class);
-                    List<AbstractArgumentRestriction<?>> restrictionsList = new ArrayList<>();
-                    for (var annotation : annotations) {
-                        restrictionsList.add((AbstractArgumentRestriction<?>)
-                                AbstractRestrictionFactory.execute(annotation.restriction(), registry, restrictionsRegistry));
-                    }
-                    restrictions = restrictionsList.toArray(new AbstractArgumentRestriction[] {});
+        for (var argument : originalStream)
+        {
+            if (argument.action.equals(Argument.Action.FlagStoreTrue)
+                    || argument.action.equals(Argument.Action.FlagStoreValue)) {
+                argList.flags.put(argument.name, argument);
+            }
+            else if (argument.action.equals(Argument.Action.Argument)) {
+                if (optionalReached || varargReached) {
+                    throw new RuntimeException("Unexpected argument after optional or vararg");
                 }
-
-                if (field.isAnnotationPresent(Flag.class)) {
-                    Flag annotation = field.getAnnotation(Flag.class);
-                    AbstractArgument<?> arg = registry.getArgument(field.getType());
-                    if (arg == null)
-                        throw new RuntimeException("Flag for " + field.getType() + " not found");
-
-                    argList.flags.put(name, new CommandArgumentList.FlagPair(arg, annotation, restrictions));
-                } else if (field.isAnnotationPresent(Argument.class)) {
-                    Argument annotation = field.getAnnotation(Argument.class);
-                    AbstractArgument<?> arg = (!annotation.vararg()
-                            ? registry.getArgument(field.getType())
-                            : registry.getArgument(field.getType().getComponentType()));
-                    if (arg == null)
-                        throw new RuntimeException("Argument for " + field.getType() + " not found");
-
-                    if (annotation.optional()) {
-                        optionalReached = true;
-                        if (varargReached)
-                            throw new RuntimeException("Invalid argument " + name + " after vararg argument");
-                    } else if (annotation.vararg()) {
-                        varargReached = true;
-                    } else if (optionalReached) {
-                        throw new RuntimeException("Invalid non-optional argument " + name + " after optional argument");
-                    } else if (varargReached) {
-                        throw new RuntimeException("Invalid non-vararg argument " + name + " after vararg argument");
-                    }
-
-                    argList.arguments.add(new CommandArgumentList.ArgPair(name, arg, annotation, restrictions));
+                argList.arguments.add(argument);
+            }
+            else if (argument.action.equals(Argument.Action.Optional)) {
+                optionalReached = true;
+                if (varargReached) {
+                    throw new RuntimeException("Unexpected optional after vararg");
                 }
+                argList.arguments.add(argument);
+            }
+            else if (argument.action.equals(Argument.Action.VarArg)) {
+                varargReached = true;
+                argList.arguments.add(argument);
+            }
+            else {
+                throw new RuntimeException("Unimplemented action");
             }
         }
 
         return argList;
     }
 
-    private static <T> CommandArgumentList createArgumentList(Class<T> clazz) {
-        return new CommandArgumentList() {
+    private ArgumentDescriptor parseArgument(Field field,
+                                             ArgumentRegistry registry,
+                                             ArgumentRestrictionRegistry restrictionsRegistry)
+    {
+        ArgumentDescriptor descriptor = new ArgumentDescriptor();
+
+        Argument annotation = field.getAnnotation(Argument.class);
+        descriptor.name = field.getName();
+        descriptor.action = annotation.action();
+        if (field.isAnnotationPresent(Argument.Phrase.class))
+            descriptor.help.phrase = field.getAnnotation(Argument.Phrase.class).phrase();
+        if (field.isAnnotationPresent(Argument.Help.class))
+            descriptor.help.help = field.getAnnotation(Argument.Help.class).help();
+
+        AbstractArgument<?> argument = null;
+        switch (annotation.action()) {
+            case VarArg:
+                argument = registry.getArgument(field.getType().getComponentType());
+            case Optional:
+            case Argument:
+                if (argument == null)
+                    argument = registry.getArgument(field.getType());
+                break;
+            case FlagStoreTrue:
+            case FlagStoreValue:
+                argument = registry.getArgument(field.getType());
+                break;
+            default:
+                throw new RuntimeException("Unknown argument action");
+        }
+        descriptor.argument = argument;
+
+        if (field.isAnnotationPresent(ArgumentRestriction.class)) {
+            for (var restrictionAnnotation : field.getAnnotationsByType(ArgumentRestriction.class)) {
+                var rest = AbstractRestrictionFactory.execute(restrictionAnnotation.restriction(), registry, restrictionsRegistry);
+                descriptor.restrictions.add(rest);
+            }
+        }
+
+        return descriptor;
+    }
+
+    private CommandArgumentList createArgumentList() {
+        return new CommandArgumentList(originalStream) {
             @Override
             public Object newInstance() {
                 try {

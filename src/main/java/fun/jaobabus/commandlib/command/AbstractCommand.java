@@ -29,7 +29,9 @@ public interface AbstractCommand<ArgumentList>
             defaultParser = new SimpleCommandParser<>();
             if (clazz == null)
                 clazz = GenericGetter.get(getClass());
-            argumentList = ArgumentBuilder.build(clazz, registry, restRegistry);
+            var builder = new ArgumentBuilder<ArgumentList>(clazz);
+            builder.fillOriginalStream(registry, restRegistry);
+            argumentList = builder.build();
         }
 
         @Override

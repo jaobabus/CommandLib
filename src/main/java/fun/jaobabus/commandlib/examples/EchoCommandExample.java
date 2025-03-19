@@ -1,7 +1,6 @@
 package fun.jaobabus.commandlib.examples;
 
 import fun.jaobabus.commandlib.argument.Argument;
-import fun.jaobabus.commandlib.argument.Flag;
 import fun.jaobabus.commandlib.argument.arguments.ArgumentRegistry;
 import fun.jaobabus.commandlib.argument.restrictions.ArgumentRestrictionRegistry;
 import fun.jaobabus.commandlib.command.AbstractCommand;
@@ -12,10 +11,10 @@ public class EchoCommandExample extends AbstractCommand.Parametrized<EchoCommand
 {
     public static class EchoArguments
     {
-        @Flag(action = Flag.Action.StoreTrue)
+        @Argument(action = Argument.Action.FlagStoreTrue)
         public Boolean n;
 
-        @Argument(vararg = true)
+        @Argument(action = Argument.Action.VarArg)
         public String[] messages;
     }
 

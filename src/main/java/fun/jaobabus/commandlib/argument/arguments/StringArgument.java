@@ -17,21 +17,6 @@ public class StringArgument extends AbstractArgument.Parametrized<String>
     }
 
     @Override
-    public String getPhase() {
-        return "String";
-    }
-
-    @Override
-    public String getShortUsage() {
-        return "text";
-    }
-
-    @Override
-    public AbstractMessage getHelp() {
-        return help;
-    }
-
-    @Override
     public List<String> tapComplete(String fragment, AbstractExecutionContext context) {
         return List.of();
     }

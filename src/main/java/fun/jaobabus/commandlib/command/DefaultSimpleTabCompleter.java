@@ -2,7 +2,7 @@ package fun.jaobabus.commandlib.command;
 
 import fun.jaobabus.commandlib.argument.AbstractArgument;
 import fun.jaobabus.commandlib.argument.AbstractArgumentRestriction;
-import fun.jaobabus.commandlib.argument.Flag;
+import fun.jaobabus.commandlib.argument.Argument;
 import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.ParseError;
 
@@ -74,8 +74,8 @@ public class DefaultSimpleTabCompleter
                         return null;
                     }
                     var flag = arguments.flags.get(String.valueOf(source.charAt(i)));
-                    if (flag.annotation().action().equals(Flag.Action.StoreValue)) {
-                        for (var comp : flag.argument().tapComplete(source.substring(i), context)) {
+                    if (flag.action.equals(Argument.Action.FlagStoreValue)) {
+                        for (var comp : flag.argument.tapComplete(source.substring(i), context)) {
                             complete.add(source.substring(0, i) + comp);
                         }
                         break;
@@ -96,7 +96,7 @@ public class DefaultSimpleTabCompleter
         }
         else {
             if (arguments.arguments.size() > argumentIndex)
-                return arguments.arguments.get(argumentIndex).argument().tapComplete(source, context);
+                return arguments.arguments.get(argumentIndex).argument.tapComplete(source, context);
             return null;
         }
     }
@@ -122,11 +122,11 @@ public class DefaultSimpleTabCompleter
                     && storage.argumentOnlyTokenAt > parsedIndex) {
                 try{
                     var arg = arguments.flags.get(String.valueOf(source.charAt(1)));
-                    for (var rest : arg.restrictions()) {
-                        var parsed = arg.argument().parseSimple(source.substring(2), context);
+                    for (var rest : arg.restrictions) {
+                        var parsed = arg.argument.parseSimple(source.substring(2), context);
                         ((AbstractArgumentRestriction<Object>)rest).assertRestriction(parsed, context);
                     }
-                    return new TabCompleteParsedArgumentResult(source, arg.argument(), true, false);
+                    return new TabCompleteParsedArgumentResult(source, arg.argument, true, false);
                 } catch (ParseError e) {
                     return new TabCompleteParsedArgumentResult(source, null, false, false);
                 }
@@ -135,11 +135,11 @@ public class DefaultSimpleTabCompleter
 
         try {
             var arg = arguments.arguments.get(argumentIndex);
-            for (var rest : arg.restrictions()) {
-                var parsed = arg.argument().parseSimple(source, context);
+            for (var rest : arg.restrictions) {
+                var parsed = arg.argument.parseSimple(source, context);
                 ((AbstractArgumentRestriction<Object>)rest).assertRestriction(parsed, context);
             }
-            return new TabCompleteParsedArgumentResult(source, arg.argument(), true, true);
+            return new TabCompleteParsedArgumentResult(source, arg.argument, true, true);
         } catch (ParseError e) {
             return new TabCompleteParsedArgumentResult(source, null, false, true);
         }

@@ -17,21 +17,6 @@ public class FloatArgument extends AbstractArgument.Parametrized<Integer>
     }
 
     @Override
-    public String getPhase() {
-        return "integer";
-    }
-
-    @Override
-    public String getShortUsage() {
-        return "123";
-    }
-
-    @Override
-    public AbstractMessage getHelp() {
-        return help;
-    }
-
-    @Override
     public List<String> tapComplete(String fragment, AbstractExecutionContext context) {
         return List.of("0");
     }

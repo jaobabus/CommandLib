@@ -2,7 +2,6 @@ package fun.jaobabus.commandlib.examples;
 
 import fun.jaobabus.commandlib.argument.Argument;
 import fun.jaobabus.commandlib.argument.ArgumentRestriction;
-import fun.jaobabus.commandlib.argument.Flag;
 import fun.jaobabus.commandlib.argument.arguments.ArgumentRegistry;
 import fun.jaobabus.commandlib.argument.restrictions.ArgumentRestrictionRegistry;
 import fun.jaobabus.commandlib.command.AbstractCommand;
@@ -13,7 +12,6 @@ public class AddCommandExample extends AbstractCommand.Parametrized<AddCommandEx
 {
     public static class AddArguments
     {
-        @Flag(action = Flag.Action.StoreValue)
         @ArgumentRestriction(restriction = "IntRange 0 0x7FFFFFFFFFFFFFFF")
         public Long s = 0L;
 
@@ -23,7 +21,7 @@ public class AddCommandExample extends AbstractCommand.Parametrized<AddCommandEx
         @Argument()
         public Long b;
 
-        @Argument(optional = true)
+        @Argument(action = Argument.Action.Optional)
         @ArgumentRestriction(restriction = "IntRange -0x7FFFFFFFFFFFFFFF -1")
         public Long neg = 0L;
     }

@@ -9,6 +9,29 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 public @interface Argument
 {
-    boolean vararg() default false;
-    boolean optional() default false;
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    @interface Phrase
+    {
+        String phrase();
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.FIELD)
+    @interface Help
+    {
+        String help();
+    }
+
+    enum Action
+    {
+        Argument,
+        Optional,
+        VarArg,
+        FlagStoreTrue,
+        FlagStoreValue,
+    }
+
+    Action action() default Action.Argument;
+
 }

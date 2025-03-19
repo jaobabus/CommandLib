@@ -3,7 +3,7 @@ package fun.jaobabus.commandlib.command;
 import fun.jaobabus.commandlib.argument.AbstractArgument;
 import fun.jaobabus.commandlib.argument.AbstractArgumentRestriction;
 import fun.jaobabus.commandlib.argument.Argument;
-import fun.jaobabus.commandlib.argument.Flag;
+import fun.jaobabus.commandlib.argument.ArgumentDescriptor;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,17 +13,15 @@ import java.util.Map;
 
 public abstract class CommandArgumentList
 {
-    public record FlagPair (AbstractArgument<?> argument,
-                            Flag annotation,
-                            AbstractArgumentRestriction<?>[] restrictions) {}
+    public final List<ArgumentDescriptor> originalStream;
+    public Map<String, ArgumentDescriptor> flags;
+    public List<ArgumentDescriptor> arguments;
 
-    public record ArgPair (String name,
-                           AbstractArgument<?> argument,
-                           Argument annotation,
-                           AbstractArgumentRestriction<?>[] restrictions) {}
-
-    public final Map<String, FlagPair> flags = new HashMap<String, FlagPair>();
-    public final List<ArgPair> arguments = new ArrayList<>();
+    public CommandArgumentList(List<ArgumentDescriptor> original) {
+        originalStream = original;
+        flags = new HashMap<>();
+        arguments = new ArrayList<>();
+    }
 
     public abstract Object newInstance();
     public abstract Class<?> getType();

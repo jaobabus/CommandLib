@@ -17,21 +17,6 @@ public class BooleanArgument extends AbstractArgument.Parametrized<Boolean>
     }
 
     @Override
-    public String getPhase() {
-        return "boolean";
-    }
-
-    @Override
-    public String getShortUsage() {
-        return "true";
-    }
-
-    @Override
-    public AbstractMessage getHelp() {
-        return help;
-    }
-
-    @Override
     public List<String> tapComplete(String fragment, AbstractExecutionContext context) {
         return List.of("true", "false");
     }
