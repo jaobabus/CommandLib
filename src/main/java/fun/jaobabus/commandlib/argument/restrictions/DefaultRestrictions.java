@@ -9,6 +9,7 @@ public class DefaultRestrictions
         if (defaultRegistry == null) {
             defaultRegistry = new ArgumentRestrictionRegistry();
             defaultRegistry.putRestriction(new IntRange());
+            defaultRegistry.putRestriction(new StringRange());
         }
         return defaultRegistry;
     }

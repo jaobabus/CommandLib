@@ -3,6 +3,7 @@ package fun.jaobabus.commandlib.command;
 import fun.jaobabus.commandlib.argument.AbstractArgument;
 import fun.jaobabus.commandlib.argument.AbstractArgumentRestriction;
 import fun.jaobabus.commandlib.argument.Argument;
+import fun.jaobabus.commandlib.argument.ArgumentDescriptor;
 import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.ParseError;
 
@@ -12,35 +13,36 @@ import java.util.List;
 import java.util.Set;
 
 
-public class DefaultSimpleTabCompleter
+public class DefaultSimpleTabCompleter<ExecutionContext extends AbstractExecutionContext>
 {
-    private record TabCompleteParsedArgumentResult(
+    private record TabCompleteParsedArgumentResult<EC extends AbstractExecutionContext> (
             String source,
-            AbstractArgument<?> result,
+            AbstractArgument<?, EC> result,
             boolean success,
             boolean isArgument
     ) {}
 
-    private static class TabCompleteData {
+    private static class TabCompleteData<EC extends AbstractExecutionContext> {
         public int argumentOnlyTokenAt = 2147483647;
-        public ArrayList<TabCompleteParsedArgumentResult> parsed = new ArrayList<>();
+        public ArrayList<TabCompleteParsedArgumentResult<EC>> parsed = new ArrayList<>();
     }
 
-    public List<String> tabComplete(String[] args, AbstractExecutionContext context, CommandArgumentList arguments)
+    public List<String> tabComplete(String[] args, ExecutionContext context, CommandArgumentList<ExecutionContext> arguments)
     {
-        var cached = (TabCompleteData)context.getSTCacheFor(this, new TabCompleteData());
+        @SuppressWarnings("unchecked")
+        var cached = (TabCompleteData<ExecutionContext>)context.getSTCacheFor(this, new TabCompleteData<ExecutionContext>());
         return getTabComplete(args, context, cached, arguments);
     }
 
     private List<String> getTabComplete(String[] args,
-                                        AbstractExecutionContext context,
-                                        TabCompleteData storage,
-                                        CommandArgumentList arguments)
+                                        ExecutionContext context,
+                                        TabCompleteData<ExecutionContext> storage,
+                                        CommandArgumentList<ExecutionContext> arguments)
     {
         int argumentIndex = 0;
         for (int i = 0; i < args.length - 1; i++) {
-            TabCompleteParsedArgumentResult parsed;
-            if (storage.parsed.size() < i) {
+            TabCompleteParsedArgumentResult<ExecutionContext> parsed;
+            if (storage.parsed.size() <= i) {
                 parsed = newParsedResult(args[i], context, storage, arguments, argumentIndex, i);
                 storage.parsed.add(parsed);
             }
@@ -58,8 +60,8 @@ public class DefaultSimpleTabCompleter
     }
 
     List<String> getTabCompleteForLast(String source,
-                                       AbstractExecutionContext context,
-                                       CommandArgumentList arguments,
+                                       ExecutionContext context,
+                                       CommandArgumentList<ExecutionContext> arguments,
                                        int argumentIndex)
     {
         if (!source.isEmpty() && source.charAt(0) == '-') {
@@ -73,16 +75,8 @@ public class DefaultSimpleTabCompleter
                     if (!arguments.flags.containsKey(String.valueOf(source.charAt(i)))) {
                         return null;
                     }
-                    var flag = arguments.flags.get(String.valueOf(source.charAt(i)));
-                    if (flag.action.equals(Argument.Action.FlagStoreValue)) {
-                        for (var comp : flag.argument.tapComplete(source.substring(i), context)) {
-                            complete.add(source.substring(0, i) + comp);
-                        }
+                    if (processFlag(complete, source, i, usedFlags, arguments.flags.get(String.valueOf(source.charAt(i))), context))
                         break;
-                    }
-                    else {
-                        usedFlags.add(String.valueOf(source.charAt(i)));
-                    }
                 }
                 for (var flagName : arguments.flags.keySet()) {
                     if (usedFlags.contains(flagName))
@@ -95,53 +89,99 @@ public class DefaultSimpleTabCompleter
             return complete;
         }
         else {
-            if (arguments.arguments.size() > argumentIndex)
-                return arguments.arguments.get(argumentIndex).argument.tapComplete(source, context);
+            if (arguments.arguments.size() > argumentIndex) {
+                return processArgument(arguments.arguments.get(argumentIndex), source, context);
+            }
             return null;
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private TabCompleteParsedArgumentResult newParsedResult(String source,
-                                                            AbstractExecutionContext context,
-                                                            TabCompleteData storage,
-                                                            CommandArgumentList arguments,
-                                                            int argumentIndex,
-                                                            int parsedIndex)
+    private <T> boolean processFlag(List<String> complete, String source, int i, Set<String> usedFlags,
+                                    ArgumentDescriptor<T, ExecutionContext> flag, ExecutionContext context)
+    {
+        if (flag.action.equals(Argument.Action.FlagStoreValue)) {
+            for (var comp : completeArgument(flag.argument, source.substring(i), flag.restrictions, context)) {
+                complete.add(source.substring(0, i) + comp);
+            }
+            return true;
+        }
+        else {
+            usedFlags.add(String.valueOf(source.charAt(i)));
+        }
+        return false;
+    }
+
+    private <T> List<String> processArgument(ArgumentDescriptor<T, ExecutionContext> argument, String source, ExecutionContext context)
+    {
+        return completeArgument(argument.argument, source, argument.restrictions, context);
+    }
+
+    private <T> List<String> completeArgument(AbstractArgument<T, ExecutionContext> argument,
+                                              String source,
+                                              List<AbstractArgumentRestriction<T>> restrictions,
+                                              ExecutionContext context)
+    {
+        var completes = argument
+                            .tapComplete(source, context);
+        for (var rest : restrictions)
+            rest.processTabComplete(source, completes, context);
+        return new ArrayList<>(completes
+                .stream()
+                .map(complete -> argument.dumpSimple(complete, context))
+                .toList());
+    }
+
+    private TabCompleteParsedArgumentResult<ExecutionContext> newParsedResult(String source,
+                                                                              ExecutionContext context,
+                                                                              TabCompleteData<ExecutionContext> storage,
+                                                                              CommandArgumentList<ExecutionContext> arguments,
+                                                                              int argumentIndex,
+                                                                              int parsedIndex)
     {
         if (source.isEmpty())
-            return new TabCompleteParsedArgumentResult(source, null, true, false);
+            return new TabCompleteParsedArgumentResult<>(source, null, true, false);
         if (source.charAt(0) == '-') {
             if (source.length() == 1)
-                return new TabCompleteParsedArgumentResult(source, null, false, false);
+                return new TabCompleteParsedArgumentResult<>(source, null, false, false);
             if (source.charAt(1) == '-') {
                 storage.argumentOnlyTokenAt = parsedIndex;
-                return new TabCompleteParsedArgumentResult(source, null, true, false);
+                return new TabCompleteParsedArgumentResult<>(source, null, true, false);
             }
             else if (arguments.flags.containsKey(String.valueOf(source.charAt(1)))
                     && storage.argumentOnlyTokenAt > parsedIndex) {
                 try{
                     var arg = arguments.flags.get(String.valueOf(source.charAt(1)));
-                    for (var rest : arg.restrictions) {
-                        var parsed = arg.argument.parseSimple(source.substring(2), context);
-                        ((AbstractArgumentRestriction<Object>)rest).assertRestriction(parsed, context);
-                    }
-                    return new TabCompleteParsedArgumentResult(source, arg.argument, true, false);
+                    assertRestrictions(arg, source.substring(2), context);
+                    return new TabCompleteParsedArgumentResult<>(source, arg.argument, true, false);
                 } catch (ParseError e) {
-                    return new TabCompleteParsedArgumentResult(source, null, false, false);
+                    return new TabCompleteParsedArgumentResult<>(source, null, false, false);
                 }
             }
+            else if (argumentIndex >= arguments.arguments.size()) {
+                return new TabCompleteParsedArgumentResult<>(source, null, false, false);
+            }
+        }
+        else if (argumentIndex >= arguments.arguments.size()) {
+            return new TabCompleteParsedArgumentResult<>(source, null, false, true);
         }
 
         try {
             var arg = arguments.arguments.get(argumentIndex);
-            for (var rest : arg.restrictions) {
-                var parsed = arg.argument.parseSimple(source, context);
-                ((AbstractArgumentRestriction<Object>)rest).assertRestriction(parsed, context);
-            }
-            return new TabCompleteParsedArgumentResult(source, arg.argument, true, true);
+            assertRestrictions(arg, source, context);
+            return new TabCompleteParsedArgumentResult<>(source, arg.argument, true, true);
         } catch (ParseError e) {
-            return new TabCompleteParsedArgumentResult(source, null, false, true);
+            return new TabCompleteParsedArgumentResult<>(source, null, false, true);
+        }
+    }
+
+    private <T> void assertRestrictions(ArgumentDescriptor<T, ExecutionContext> argument,
+                                       String source,
+                                       ExecutionContext context)
+            throws ParseError
+    {
+        for (var rest : argument.restrictions) {
+            var parsed = argument.argument.parseSimple(source, context);
+            rest.assertRestriction(parsed, context);
         }
     }
 }

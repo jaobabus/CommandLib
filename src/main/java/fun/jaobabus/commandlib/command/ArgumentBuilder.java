@@ -4,15 +4,16 @@ import fun.jaobabus.commandlib.argument.*;
 import fun.jaobabus.commandlib.argument.arguments.ArgumentRegistry;
 import fun.jaobabus.commandlib.argument.restrictions.AbstractRestrictionFactory;
 import fun.jaobabus.commandlib.argument.restrictions.ArgumentRestrictionRegistry;
+import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
 
-public class ArgumentBuilder<ArgumentList>
+public class ArgumentBuilder<ArgumentList, ExecutionContext extends AbstractExecutionContext>
 {
-    private final List<ArgumentDescriptor> originalStream;
+    private final List<ArgumentDescriptor<?, ExecutionContext>> originalStream;
     private final Class<ArgumentList> clazz;
 
     public ArgumentBuilder(Class<ArgumentList> clazz)
@@ -30,13 +31,13 @@ public class ArgumentBuilder<ArgumentList>
         }
     }
 
-    public List<ArgumentDescriptor> getOriginalStream() {
+    public List<ArgumentDescriptor<?, ExecutionContext>> getOriginalStream() {
         return originalStream;
     }
 
-    public CommandArgumentList build()
+    public CommandArgumentList<ExecutionContext> build()
     {
-        CommandArgumentList argList = createArgumentList();
+        CommandArgumentList<ExecutionContext> argList = createArgumentList();
 
         boolean optionalReached = false;
         boolean varargReached = false;
@@ -71,11 +72,12 @@ public class ArgumentBuilder<ArgumentList>
         return argList;
     }
 
-    private ArgumentDescriptor parseArgument(Field field,
-                                             ArgumentRegistry registry,
-                                             ArgumentRestrictionRegistry restrictionsRegistry)
+    @SuppressWarnings("unchecked")
+    private <T> ArgumentDescriptor<T, ExecutionContext> parseArgument(Field field,
+                                                                      ArgumentRegistry registry,
+                                                                      ArgumentRestrictionRegistry restrictionsRegistry)
     {
-        ArgumentDescriptor descriptor = new ArgumentDescriptor();
+        ArgumentDescriptor<T, ExecutionContext> descriptor = new ArgumentDescriptor<>();
 
         Argument annotation = field.getAnnotation(Argument.class);
         descriptor.name = field.getName();
@@ -84,19 +86,27 @@ public class ArgumentBuilder<ArgumentList>
             descriptor.help.phrase = field.getAnnotation(Argument.Phrase.class).phrase();
         if (field.isAnnotationPresent(Argument.Help.class))
             descriptor.help.help = field.getAnnotation(Argument.Help.class).help();
+        descriptor.defaultValue = annotation.defaultValue();
 
-        AbstractArgument<?> argument = null;
+        var argId = clazz.getName() + "." + field.getName();
+        AbstractArgument<T, ExecutionContext> argument = null;
         switch (annotation.action()) {
             case VarArg:
-                argument = registry.getArgument(field.getType().getComponentType());
+                argument = (AbstractArgument<T, ExecutionContext>)registry.getArgument(field.getType().getComponentType());
+                if (argument == null)
+                    throw new RuntimeException("Unregistered argument type " + field.getType().getComponentType() + " for " + argId);
             case Optional:
             case Argument:
                 if (argument == null)
-                    argument = registry.getArgument(field.getType());
+                    argument = (AbstractArgument<T, ExecutionContext>)registry.getArgument(field.getType());
+                if (argument == null)
+                    throw new RuntimeException("Unregistered argument type " + field.getType() + " for " + argId);
                 break;
             case FlagStoreTrue:
             case FlagStoreValue:
-                argument = registry.getArgument(field.getType());
+                argument = (AbstractArgument<T, ExecutionContext>)registry.getArgument(field.getType());
+                if (argument == null)
+                    throw new RuntimeException("Unregistered argument type " + field.getType() + " for " + argId);
                 break;
             default:
                 throw new RuntimeException("Unknown argument action");
@@ -105,7 +115,7 @@ public class ArgumentBuilder<ArgumentList>
 
         if (field.isAnnotationPresent(ArgumentRestriction.class)) {
             for (var restrictionAnnotation : field.getAnnotationsByType(ArgumentRestriction.class)) {
-                var rest = AbstractRestrictionFactory.execute(restrictionAnnotation.restriction(), registry, restrictionsRegistry);
+                AbstractArgumentRestriction<T> rest = AbstractRestrictionFactory.execute(restrictionAnnotation.restriction(), registry, restrictionsRegistry);
                 descriptor.restrictions.add(rest);
             }
         }
@@ -113,8 +123,8 @@ public class ArgumentBuilder<ArgumentList>
         return descriptor;
     }
 
-    private CommandArgumentList createArgumentList() {
-        return new CommandArgumentList(originalStream) {
+    private CommandArgumentList<ExecutionContext> createArgumentList() {
+        return new CommandArgumentList<ExecutionContext>(originalStream) {
             @Override
             public Object newInstance() {
                 try {

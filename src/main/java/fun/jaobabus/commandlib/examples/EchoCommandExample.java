@@ -7,7 +7,7 @@ import fun.jaobabus.commandlib.command.AbstractCommand;
 import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 
-public class EchoCommandExample extends AbstractCommand.Parametrized<EchoCommandExample.EchoArguments>
+public class EchoCommandExample extends AbstractCommand.Parametrized<EchoCommandExample.EchoArguments, AbstractExecutionContext>
 {
     public static class EchoArguments
     {

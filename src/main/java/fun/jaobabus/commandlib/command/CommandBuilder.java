@@ -1,6 +1,8 @@
 package fun.jaobabus.commandlib.command;
 
 import fun.jaobabus.commandlib.argument.AbstractArgumentRestriction;
+import fun.jaobabus.commandlib.argument.Argument;
+import fun.jaobabus.commandlib.argument.ArgumentDescriptor;
 import fun.jaobabus.commandlib.argument.arguments.ArgumentRegistry;
 import fun.jaobabus.commandlib.argument.restrictions.AbstractRestrictionFactory;
 import fun.jaobabus.commandlib.argument.restrictions.ArgumentRestrictionRegistry;
@@ -8,7 +10,6 @@ import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.ParseError;
 
-import org.jetbrains.annotations.NotNull;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -16,103 +17,149 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class CommandBuilder
+public class CommandBuilder<ExecutionContext extends AbstractExecutionContext>
 {
-    public interface StandAloneCommand
+    public interface StandAloneCommand<ExecutionContext extends AbstractExecutionContext>
     {
         String getName();
         String aliasOf();
 
-        AbstractMessage execute(String[] args, AbstractExecutionContext context) throws ParseError;
-        List<String> tabComplete(String[] args, AbstractExecutionContext context);
+        AbstractMessage execute(String[] args, ExecutionContext context) throws ParseError;
+        List<String> tabComplete(String[] args, ExecutionContext context);
     }
 
-    public static Map<String, StandAloneCommand> build(Class<?> container,
-                                                       ArgumentRegistry registry,
-                                                       ArgumentRestrictionRegistry restrictionsRegistry)
+    public class CommandDescription<AL>
     {
-        Map<String, StandAloneCommand> commands = new HashMap<>();
-        Map<String, StandAloneCommand> allCommands = new HashMap<>();
-        Map<String, String> allAliases = new HashMap<>();
-        for (var field : container.getDeclaredFields()) {
+        public static class Help {
+            public String phrase;
+            public String help;
+        }
+
+        public String name;
+        public AbstractCommand<AL, ExecutionContext> command;
+        public List<AbstractArgumentRestriction<AbstractCommand<AL, ExecutionContext>>> restrictions;
+        public Help help = new Help();
+    }
+
+    Class<?> clazz;
+    List<CommandDescription<?>> originalStream;
+
+    public CommandBuilder(Class<?> clazz)
+    {
+        this.clazz = clazz;
+        originalStream = new ArrayList<>(clazz.getFields().length);
+    }
+
+    public void fillOriginalStream(ArgumentRegistry registry,
+                                   ArgumentRestrictionRegistry restrictionsRegistry)
+    {
+        for (var field : clazz.getDeclaredFields()) {
             if (field.isAnnotationPresent(Command.class)) {
-                List<AbstractArgumentRestriction<?>> restrictions = new ArrayList<>();
+                originalStream.add(parseCommand(field, registry, restrictionsRegistry));
+            }
+        }
+    }
 
-                if (field.isAnnotationPresent(CommandRestriction.class)) {
-                    var annotations = field.getAnnotationsByType(CommandRestriction.class);
-                    for (var annotation : annotations) {
-                        restrictions.add((AbstractArgumentRestriction<?>)
-                                AbstractRestrictionFactory.execute(annotation.restriction(), registry, restrictionsRegistry));
-                    }
-                }
+    public List<CommandDescription<?>> getOriginalStream() {
+        return originalStream;
+    }
 
-                var annotation = field.getAnnotation(Command.class);
-                StandAloneCommand command;
-                try {
-                    command = getStandAloneCommand(container, field, annotation, restrictions.toArray(new AbstractArgumentRestriction[]{}), registry, restrictionsRegistry);
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException(e);
-                }
-                allCommands.put(field.getName(), command);
+    private <T> CommandDescription<T> parseCommand(Field field,
+                                                   ArgumentRegistry registry,
+                                                   ArgumentRestrictionRegistry restrictionsRegistry)
+    {
+        List<AbstractArgumentRestriction<AbstractCommand<T, ExecutionContext>>> restrictions = new ArrayList<>();
 
-                if (annotation.aliasOf().isEmpty())
-                    commands.put(field.getName(), command);
-                else
-                    allAliases.put(field.getName(), command.aliasOf());
+        if (field.isAnnotationPresent(CommandRestriction.class)) {
+            var annotations = field.getAnnotationsByType(CommandRestriction.class);
+            for (var annotation : annotations) {
+                restrictions.add(AbstractRestrictionFactory.execute(annotation.restriction(), registry, restrictionsRegistry));
             }
         }
 
-        for (var pair : allAliases.entrySet()) {
-            if (!allCommands.containsKey(pair.getValue()))
-                throw new RuntimeException("Alias error: Command " + pair.getValue() + " not found");
-            commands.put(pair.getKey(), allCommands.get(pair.getValue()));
+        var desc = new CommandDescription<T>();
+        desc.name = field.getName();
+        desc.restrictions = restrictions;
+        desc.command = getCommand(field, registry, restrictionsRegistry);
+
+        if (field.isAnnotationPresent(Command.Phrase.class))
+            desc.help.phrase = field.getAnnotation(Command.Phrase.class).phrase();
+        if (field.isAnnotationPresent(Command.Help.class))
+            desc.help.help = field.getAnnotation(Command.Help.class).help();
+
+        return desc;
+    }
+
+    public Map<String, StandAloneCommand<ExecutionContext>> build()
+    {
+        Map<String, StandAloneCommand<ExecutionContext>> commands = new HashMap<>();
+        Map<String, CommandDescription<?>> originalCommands = new HashMap<>();
+
+        for (var cmd : originalStream) {
+            commands.put(cmd.name, getStandAloneCommand(cmd, ""));
+            originalCommands.put(cmd.name, cmd);
+        }
+
+        for (var field : clazz.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Command.class)) {
+                var annotation = field.getAnnotation(Command.class);
+                if (!annotation.aliasOf().isEmpty()) {
+                    var originalCommand = originalCommands.get(field.getName());
+                    if (originalCommand == null)
+                        throw new RuntimeException("Unknown command to alias " + field.getName());
+                    var command = getStandAloneCommand(originalCommand, annotation.aliasOf());
+                    commands.put(field.getName(), command);
+                }
+            }
         }
 
         return commands;
     }
 
-    private static @NotNull StandAloneCommand getStandAloneCommand(Object container,
-                                                                   Field field,
-                                                                   Command annotation,
-                                                                   AbstractArgumentRestriction<?>[] restrictions,
-                                                                   ArgumentRegistry registry,
-                                                                   ArgumentRestrictionRegistry restrictionsRegistry)
-            throws IllegalAccessException {
-        AbstractCommand<?> cmd;
+    @SuppressWarnings("unchecked")
+    <T> AbstractCommand<T, ExecutionContext> getCommand(Field field,
+                                                        ArgumentRegistry registry,
+                                                        ArgumentRestrictionRegistry restrictionsRegistry)
+    {
+        AbstractCommand<T, ExecutionContext> cmd;
         try {
-            cmd = (AbstractCommand<?>)
+            cmd = (AbstractCommand<T, ExecutionContext>)
                     field.getType()
-                    .getDeclaredConstructor(ArgumentRegistry.class, ArgumentRestrictionRegistry.class)
-                    .newInstance(registry, restrictionsRegistry);
-        } catch (InstantiationException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
+                            .getDeclaredConstructor(ArgumentRegistry.class, ArgumentRestrictionRegistry.class)
+                            .newInstance(registry, restrictionsRegistry);
+        } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException e) {
+            throw new RuntimeException("Exception while compile " + field, e);
         }
+        return cmd;
+    }
 
-        return new StandAloneCommand() {
-            static final DefaultSimpleTabCompleter defaultTabCompleter = new DefaultSimpleTabCompleter();
+    private <T> StandAloneCommand<ExecutionContext> getStandAloneCommand(CommandDescription<T> description,
+                                                                         String aliasOf)
+    {
+        return new StandAloneCommand<>() {
+            final DefaultSimpleTabCompleter<ExecutionContext> defaultTabCompleter = new DefaultSimpleTabCompleter<>();
 
             @Override
             public String getName() {
-                return field.getName();
+                return description.name;
             }
 
             @Override
             public String aliasOf() {
-                return (annotation.aliasOf().isEmpty() ? null : annotation.aliasOf());
-            }
-
-            @SuppressWarnings("unchecked")
-            @Override
-            public AbstractMessage execute(String[] args, AbstractExecutionContext context) throws ParseError {
-                for (var rest : restrictions)
-                    ((AbstractArgumentRestriction<Object>)rest).assertRestriction(cmd, context);
-                var parsed = cmd.getParser().parseSimple(args, cmd.getArgumentList(), context);
-                return ((AbstractCommand<Object>)cmd).execute(parsed, context);
+                return (aliasOf.isEmpty() ? null : aliasOf);
             }
 
             @Override
-            public List<String> tabComplete(String[] args, AbstractExecutionContext context) {
-                return defaultTabCompleter.tabComplete(args, context, cmd.getArgumentList());
+            public AbstractMessage execute(String[] args, ExecutionContext context) throws ParseError {
+                for (var rest : description.restrictions)
+                    rest.assertRestriction(description.command, context);
+                var parsed = description.command.getParser().parseSimple(args, description.command.getArgumentList(), context);
+                return description.command.execute(parsed, context);
+            }
+
+            @Override
+            public List<String> tabComplete(String[] args, ExecutionContext context) {
+                return defaultTabCompleter.tabComplete(args, context, description.command.getArgumentList());
             }
         };
     }

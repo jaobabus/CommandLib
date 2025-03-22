@@ -5,9 +5,11 @@ import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.ParseError;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class BooleanArgument extends AbstractArgument.Parametrized<Boolean>
+public class BooleanArgument<ExecutionContext extends AbstractExecutionContext>
+        extends AbstractArgument.Parametrized<Boolean, ExecutionContext>
 {
     public static final AbstractMessage help = new AbstractMessage.StringMessage("Boolean value");
 
@@ -17,12 +19,12 @@ public class BooleanArgument extends AbstractArgument.Parametrized<Boolean>
     }
 
     @Override
-    public List<String> tapComplete(String fragment, AbstractExecutionContext context) {
-        return List.of("true", "false");
+    public List<Boolean> tapComplete(String fragment, ExecutionContext context) {
+        return new ArrayList<>(List.of(true, false));
     }
 
     @Override
-    public Boolean parseSimple(String arg, AbstractExecutionContext context) throws ParseError {
+    public Boolean parseSimple(String arg, ExecutionContext context) throws ParseError {
         try {
             if (arg.equals("0") || arg.equals("1")) {
                 return Integer.parseInt(arg) == 1;
@@ -34,5 +36,10 @@ public class BooleanArgument extends AbstractArgument.Parametrized<Boolean>
         catch (NumberFormatException e) {
             throw new ParseError(new AbstractMessage.StringMessage(e.toString()));
         }
+    }
+
+    @Override
+    public String dumpSimple(Boolean arg, ExecutionContext context) {
+        return arg.toString();
     }
 }

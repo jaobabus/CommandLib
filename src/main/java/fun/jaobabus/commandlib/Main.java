@@ -16,7 +16,9 @@ public class Main {
         context.executor = "<Main>";
         context.shortTermCache = new HashMap<>();
 
-        var myCommands = CommandBuilder.build(Commands.class, reg, restReg);
+        var builder = new CommandBuilder<>(Commands.class);
+        builder.fillOriginalStream(reg, restReg);
+        var myCommands = builder.build();
 
         runExample(myCommands.get("echo"), "-n 123 \\n", context);
         runExample(myCommands.get("add"), "10 20", context);
@@ -25,9 +27,10 @@ public class Main {
         showComplete(myCommands.get("echo"), "-", context);
         showComplete(myCommands.get("echo"), "--", context);
         showComplete(myCommands.get("echo"), "-n", context);
+        showComplete(myCommands.get("adds"), "1 1 1 ", context);
     }
 
-    static void runExample(CommandBuilder.StandAloneCommand cmd, String cmdline, AbstractExecutionContext context)
+    static void runExample(CommandBuilder.StandAloneCommand<AbstractExecutionContext> cmd, String cmdline, AbstractExecutionContext context)
     {
         System.out.println("Execute '" + cmdline + "'");
         try {
@@ -39,9 +42,9 @@ public class Main {
         System.out.println();
     }
 
-    static void showComplete(CommandBuilder.StandAloneCommand cmd, String cmdline, AbstractExecutionContext context)
+    static void showComplete(CommandBuilder.StandAloneCommand<AbstractExecutionContext> cmd, String cmdline, AbstractExecutionContext context)
     {
-        String[] args = cmdline.split(" ");
+        String[] args = cmdline.split(" ", -1);
         System.out.println("Complete '" + cmdline + "'");
         System.out.print(cmd.tabComplete(args, context).toString());
         System.out.println();

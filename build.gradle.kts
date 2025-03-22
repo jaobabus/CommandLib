@@ -1,13 +1,15 @@
 plugins {
     id("java")
     id("application")
+    id("maven-publish")
 }
 
 group = "fun.jaobabus"
-version = "0.1-SNAPSHOT"
+version = "0.2.1-SNAPSHOT"
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 dependencies {
@@ -33,4 +35,32 @@ java {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+tasks.jar {
+    manifest {
+        attributes(
+            "Main-Class" to mainClass
+        )
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            groupId = "fun.jaobabus"
+            artifactId = "commandlib"
+            version = project.version.toString()
+
+            from(components["java"])
+        }
+    }
+
+    repositories {
+        maven {
+            name = "myRepo"
+            url = uri(layout.buildDirectory.dir("repo"))
+        }
+        mavenLocal()
+    }
 }

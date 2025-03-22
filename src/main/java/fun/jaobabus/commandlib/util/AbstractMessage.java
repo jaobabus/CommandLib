@@ -14,4 +14,13 @@ public interface AbstractMessage
             return msg;
         }
     }
+
+    static AbstractMessage fromString(String str) {
+        return new StringMessage(str);
+    }
+
+    default String toJson() {
+        var s = toString().replace("\\", "\\\\").replace("\"", "\\\"");
+        return "{\"text\":\"" + s + "\"}";
+    }
 }

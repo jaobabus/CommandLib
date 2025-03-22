@@ -8,13 +8,13 @@ public class Commands
 {
     // @CommandRestriction(restriction = "perm plugin.echo.execute")
     @Command
-    EchoCommandExample echo;
+    public EchoCommandExample echo;
 
     // @CommandRestriction(restriction = "perm plugin.add.execute")
     @Command
-    AddCommandExample add;
+    public AddCommandExample add;
 
     @Command(aliasOf = "add")
-    AddCommandExample adds;
+    public AddCommandExample adds;
 
 }

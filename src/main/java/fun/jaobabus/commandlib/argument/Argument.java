@@ -30,8 +30,10 @@ public @interface Argument
         VarArg,
         FlagStoreTrue,
         FlagStoreValue,
+        FlagAppendValue,
     }
 
     Action action() default Action.Argument;
+    String defaultValue() default "";
 
 }

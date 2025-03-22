@@ -7,19 +7,20 @@ import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.GenericGetter;
 
 
-public interface AbstractCommand<ArgumentList>
+public interface AbstractCommand<ArgumentList, ExecutionContext extends AbstractExecutionContext>
 {
-    CommandArgumentList getArgumentList();
+    CommandArgumentList<ExecutionContext> getArgumentList();
 
     AbstractMessage execute(ArgumentList input,
-                            AbstractExecutionContext context);
+                            ExecutionContext context);
 
-    SimpleCommandParser<ArgumentList> getParser();
+    SimpleCommandParser<ArgumentList, ExecutionContext> getParser();
 
-    abstract class Parametrized<ArgumentList> implements AbstractCommand<ArgumentList>
+    abstract class Parametrized<ArgumentList, ExecutionContext extends AbstractExecutionContext>
+            implements AbstractCommand<ArgumentList, ExecutionContext>
     {
-        protected final SimpleCommandParser<ArgumentList> defaultParser;
-        protected final CommandArgumentList argumentList;
+        protected final SimpleCommandParser<ArgumentList, ExecutionContext> defaultParser;
+        protected final CommandArgumentList<ExecutionContext> argumentList;
 
         public Parametrized(ArgumentRegistry registry, ArgumentRestrictionRegistry restRegistry) {
             this(null, registry, restRegistry);
@@ -29,18 +30,18 @@ public interface AbstractCommand<ArgumentList>
             defaultParser = new SimpleCommandParser<>();
             if (clazz == null)
                 clazz = GenericGetter.get(getClass());
-            var builder = new ArgumentBuilder<ArgumentList>(clazz);
+            var builder = new ArgumentBuilder<ArgumentList, ExecutionContext>(clazz);
             builder.fillOriginalStream(registry, restRegistry);
             argumentList = builder.build();
         }
 
         @Override
-        public SimpleCommandParser<ArgumentList> getParser() {
+        public SimpleCommandParser<ArgumentList, ExecutionContext> getParser() {
             return defaultParser;
         }
 
         @Override
-        public CommandArgumentList getArgumentList() {
+        public CommandArgumentList<ExecutionContext> getArgumentList() {
             return argumentList;
         }
     }

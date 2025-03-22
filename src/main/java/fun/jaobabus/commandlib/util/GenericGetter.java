@@ -7,9 +7,18 @@ import java.lang.reflect.Type;
 public class GenericGetter
 {
     @SuppressWarnings("unchecked")
-    public static <T> Class<T> get(Class<?> currentClass) {
+    public static <T> Class<T> get(Class<?> currentClass, int index) {
         Type parameterizedType = currentClass.getGenericSuperclass();
-        return (Class<T>) ((ParameterizedType)parameterizedType).getActualTypeArguments()[0];
+        var argument = ((ParameterizedType)parameterizedType).getActualTypeArguments()[index];
+        if (argument instanceof Class<?> cls)
+            return (Class<T>)cls;
+        else if (argument instanceof ParameterizedType p)
+            return (Class<T>) p.getRawType();
+        else
+            throw new RuntimeException("Can't get generic for " + currentClass);
+    }
+    public static <T> Class<T> get(Class<?> currentClass) {
+        return get(currentClass, 0);
     }
 
     @SuppressWarnings("unchecked")
@@ -27,4 +36,5 @@ public class GenericGetter
 
         throw new RuntimeException("Cannot determine generic type for " + targetClass.getName());
     }
+
 }

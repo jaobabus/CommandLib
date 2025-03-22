@@ -11,18 +11,19 @@ import fun.jaobabus.commandlib.util.GenericGetter;
 import fun.jaobabus.commandlib.util.ParseError;
 
 
-public interface AbstractRestrictionFactory<ArgumentList>
+public interface AbstractRestrictionFactory<ArgumentType, ArgumentList>
 {
     String getName();
 
-    CommandArgumentList getArgumentList();
+    CommandArgumentList<AbstractExecutionContext> getArgumentList();
 
-    AbstractArgumentRestriction<?> execute(ArgumentList input);
+    AbstractArgumentRestriction<ArgumentType> execute(ArgumentList input);
 
 
-    abstract class Parametrized<ArgumentList> implements AbstractRestrictionFactory<ArgumentList>
+    abstract class Parametrized<ArgumentType, ArgumentList>
+            implements AbstractRestrictionFactory<ArgumentType, ArgumentList>
     {
-        protected final CommandArgumentList argumentList;
+        protected final CommandArgumentList<AbstractExecutionContext> argumentList;
 
         public Parametrized() {
             this(DefaultArguments.getDefaultArgumentsRegistry(), DefaultRestrictions.getDefaultRegistry());
@@ -34,30 +35,37 @@ public interface AbstractRestrictionFactory<ArgumentList>
 
         public Parametrized(Class<ArgumentList> clazz, ArgumentRegistry registry, ArgumentRestrictionRegistry restRegistry) {
             if (clazz == null)
-                clazz = GenericGetter.get(getClass());
-            var builder = new ArgumentBuilder<ArgumentList>(clazz);
+                clazz = GenericGetter.get(getClass(), 1);
+            var builder = new ArgumentBuilder<>(clazz);
             builder.fillOriginalStream(registry, restRegistry);
             argumentList = builder.build();
         }
 
         @Override
-        public CommandArgumentList getArgumentList() {
+        public String getName() {
+            var r = getClass().getName().split("\\$");
+            r = r[r.length - 1].split("\\.");
+            return r[r.length - 1];
+        }
+
+        @Override
+        public CommandArgumentList<AbstractExecutionContext> getArgumentList() {
             return argumentList;
         }
     }
 
     @SuppressWarnings("unchecked")
-    static <T> AbstractArgumentRestriction<T> execute(String restriction,
-                                                     ArgumentRegistry registry,
-                                                     ArgumentRestrictionRegistry restrictionsRegistry)
+    static <T, AL> AbstractArgumentRestriction<T> execute(String restriction,
+                                                      ArgumentRegistry registry,
+                                                      ArgumentRestrictionRegistry restrictionsRegistry)
     {
         var restName = restriction.split(" ")[0];
-        var factory = (AbstractRestrictionFactory<Object>)restrictionsRegistry.getRestriction(restName);
+        var factory = (AbstractRestrictionFactory<T, AL>) restrictionsRegistry.getRestriction(restName);
         if (factory == null)
             throw new RuntimeException("Restriction " + restName + " not found");
 
-        var argParser = new SimpleCommandParser<>();
-        Object parsed;
+        var argParser = new SimpleCommandParser<AL, AbstractExecutionContext>();
+        AL parsed;
 
         try {
             var context = new AbstractExecutionContext();
@@ -69,6 +77,6 @@ public interface AbstractRestrictionFactory<ArgumentList>
             throw new RuntimeException(e);
         }
 
-        return (AbstractArgumentRestriction<T>) factory.execute(parsed);
+        return factory.execute(parsed);
     }
 }

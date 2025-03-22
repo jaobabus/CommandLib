@@ -8,7 +8,7 @@ import fun.jaobabus.commandlib.util.ParseError;
 import java.util.List;
 
 
-public interface AbstractArgument<ArgumentType>
+public interface AbstractArgument<ArgumentType, ExecutionContext extends AbstractExecutionContext>
 {
     enum ParseMode
     {
@@ -27,7 +27,7 @@ public interface AbstractArgument<ArgumentType>
     /// @param fragment fragment of argument
     /// @param context execution context
     /// @return possible completes
-    List<String> tapComplete(String fragment, AbstractExecutionContext context);
+    List<ArgumentType> tapComplete(String fragment, ExecutionContext context);
 
     /// parseSimple
     /// @param arg full string for parse
@@ -36,13 +36,20 @@ public interface AbstractArgument<ArgumentType>
     ///
     /// @return parsed object
     ArgumentType parseSimple(String arg,
-                             AbstractExecutionContext context)
+                             ExecutionContext context)
             throws ParseError;
+
+    /// dumpSimple
+    /// @param arg value to dump
+    ///
+    /// @return string parsable value
+    String dumpSimple(ArgumentType arg,
+                       ExecutionContext context);
 
     Class<ArgumentType> getArgumentClass();
 
     // Helper class
-    abstract class Parametrized<T> implements AbstractArgument<T> {
+    abstract class Parametrized<T, EC extends AbstractExecutionContext> implements AbstractArgument<T, EC> {
         private final Class<T> argumentCLass;
 
         public Parametrized()
