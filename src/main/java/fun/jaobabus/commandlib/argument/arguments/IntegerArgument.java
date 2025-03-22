@@ -1,15 +1,15 @@
 package fun.jaobabus.commandlib.argument.arguments;
 
 import fun.jaobabus.commandlib.argument.AbstractArgument;
-import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.ParseError;
+import fun.jaobabus.commandlib.context.DummyArgumentContext;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class IntegerArgument<ExecutionContext extends AbstractExecutionContext>
-        extends AbstractArgument.Parametrized<Long, ExecutionContext>
+public class IntegerArgument
+        extends AbstractArgument.Parametrized<Long, DummyArgumentContext>
 {
     public static final AbstractMessage help = new AbstractMessage.StringMessage("64 bit integer value");
 
@@ -19,12 +19,12 @@ public class IntegerArgument<ExecutionContext extends AbstractExecutionContext>
     }
 
     @Override
-    public List<Long> tapComplete(String fragment, ExecutionContext context) {
+    public List<Long> tapComplete(String fragment, DummyArgumentContext context) {
         return new ArrayList<>(List.of(0L));
     }
 
     @Override
-    public Long parseSimple(String arg, ExecutionContext context) throws ParseError {
+    public Long parseSimple(String arg, DummyArgumentContext context) throws ParseError {
         try {
             long sign = 1L;
             if (arg.startsWith("-")) {
@@ -50,7 +50,7 @@ public class IntegerArgument<ExecutionContext extends AbstractExecutionContext>
     }
 
     @Override
-    public String dumpSimple(Long arg, ExecutionContext context) {
+    public String dumpSimple(Long arg, DummyArgumentContext context) {
         return String.valueOf(arg);
     }
 }

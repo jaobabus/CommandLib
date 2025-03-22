@@ -13,12 +13,17 @@ import java.util.List;
 public class StringRange extends AbstractRestrictionFactory.Parametrized<String, StringRange.Arguments>
 {
     @Override
-    public AbstractArgumentRestriction<String> execute(StringRange.Arguments input) {
+    public AbstractArgumentRestriction<String> execute(StringRange.Arguments input, String path) {
         var possible = new HashSet<>(Arrays.asList(input.possible));
         return new AbstractArgumentRestriction.Parametrized<>() {
             @Override
             public String getName() {
                 return "StringRange";
+            }
+
+            @Override
+            public String getPath() {
+                return path;
             }
 
             @Override

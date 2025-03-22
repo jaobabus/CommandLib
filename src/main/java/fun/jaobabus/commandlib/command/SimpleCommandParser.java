@@ -3,6 +3,7 @@ package fun.jaobabus.commandlib.command;
 import fun.jaobabus.commandlib.argument.AbstractArgumentRestriction;
 import fun.jaobabus.commandlib.argument.Argument;
 import fun.jaobabus.commandlib.argument.ArgumentDescriptor;
+import fun.jaobabus.commandlib.context.BaseArgumentContext;
 import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.ParseError;
@@ -15,11 +16,12 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
 {
     @Override
     @SuppressWarnings("unchecked")
-    public ArgumentList parseSimple(String[] args, CommandArgumentList<ExecutionContext> arguments, ExecutionContext context) throws ParseError {
+    public ArgumentList parseSimple(String[] args, CommandArgumentList arguments, ExecutionContext context) throws ParseError {
+        arguments.initContext(context);
         ArgumentList argList = (ArgumentList) arguments.newInstance();
 
         boolean allowFlags = true;
-        ArgumentDescriptor<?, ExecutionContext> nextArgument = null;
+        ArgumentDescriptor<?, ?> nextArgument = null;
         List<Object> varargs = new ArrayList<>();
         Set<String> usedFlags = new HashSet<>();
         Map<String, List<Object>> flagsVarargs = new HashMap<>();
@@ -56,7 +58,7 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                         else if (flag.action.equals(Argument.Action.FlagStoreValue)) {
                             var field = clazz.getField(name);
                             var value = arg.substring(index + 1);
-                            var result = flag.argument.parseSimple(value, context);
+                            var result = parseArgument(flag, value, context);
                             field.set(argList, result);
                             arg = "";
                             usedFlags.add(name);
@@ -64,7 +66,7 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                         }
                         else if (flag.action.equals(Argument.Action.FlagAppendValue)) {
                             var value = arg.substring(index + 1);
-                            var result = flag.argument.parseSimple(value, context);
+                            var result = parseArgument(flag, value, context);
                             flagsVarargs.computeIfAbsent(name, p -> new ArrayList<>()).add(result);
                             arg = "";
                             usedFlags.add(name);
@@ -84,12 +86,21 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                     nextArgument = argIterator.next();
                 }
 
-                var result = nextArgument.argument.parseSimple(arg, context);
+                var result = parseArgument(nextArgument, arg, context);
                 var field = clazz.getField(nextArgument.name);
 
                 if (!nextArgument.restrictions.isEmpty())
-                    for (var rest : nextArgument.restrictions)
-                        ((AbstractArgumentRestriction<Object>)rest).assertRestriction(result, context);
+                    for (var anyRest : nextArgument.restrictions) {
+                        var rest = ((AbstractArgumentRestriction<Object>) anyRest);
+                        var target = getTarget(result, rest.getPath());
+                        if (target.getClass().isArray()
+                                && target.getClass().getComponentType().isAssignableFrom(rest.getType())) {
+                            for (var item : (Object[])target)
+                                rest.assertRestriction(item, context);
+                        }
+                        else
+                            rest.assertRestriction(target, context);
+                    }
 
                 if (nextArgument.action.equals(Argument.Action.VarArg)) {
                     varargs.add(result);
@@ -104,7 +115,7 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                 var field = clazz.getField(nextArgument.name);
                 if (nextArgument.action == Argument.Action.Optional) {
                     if (!nextArgument.defaultValue.isEmpty()) {
-                        var result = nextArgument.argument.parseSimple(nextArgument.defaultValue, context);
+                        var result = parseArgument(nextArgument, nextArgument.defaultValue, context);
                         field.setAccessible(true);
                         field.set(argList, result);
                     }
@@ -114,7 +125,7 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                         String[] defaultArgs = nextArgument.defaultValue.split(" ");
                         List<Object> defaultVarargs = new ArrayList<>(defaultArgs.length);
                         for (var arg : defaultArgs)
-                            defaultVarargs.add(nextArgument.argument.parseSimple(arg, context));
+                            defaultVarargs.add(parseArgument(nextArgument, arg, context));
                         field.setAccessible(true);
                         field.set(argList, defaultVarargs);
                     }
@@ -135,7 +146,7 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                     continue;
                 var flag = arguments.flags.get(flagKey);
                 var field = clazz.getField(flagKey);
-                var result = flag.argument.parseSimple(flag.defaultValue, context);
+                var result = parseArgument(flag, flag.defaultValue, context);
                 field.setAccessible(true);
                 if (field.get(argList) == null)
                     field.set(argList, result);
@@ -150,14 +161,45 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
             }
         }
         catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new ParseError(new AbstractMessage.StringMessage("Internal error for " + nextArgument + ": " + e));
+            throw new ParseError(new AbstractMessage.StringMessage(
+                    "Internal error for "
+                            + nextArgument + (nextArgument != null ? ":(" + nextArgument.name + ")" : "") + ": "
+                            + e + "\n"
+                            + String.join(", ", Arrays.stream(e.getStackTrace()).map(StackTraceElement::toString).toList())));
         }
 
         return argList;
     }
 
+    private <T, AC extends BaseArgumentContext>
+    T parseArgument(ArgumentDescriptor<T, AC> argument, String stringValue, ExecutionContext ec)
+            throws ParseError
+    {
+        return argument.processor.parseWithContext(stringValue, ec);
+    }
+
     @Override
-    public List<String> tabCompleteSimple(String[] args, CommandArgumentList<ExecutionContext> arguments, ExecutionContext context) {
+    public List<String> tabCompleteSimple(String[] args, CommandArgumentList arguments, ExecutionContext context) {
         return List.of();
+    }
+
+    private Object getTarget(Object instance, String targetPath)
+    {
+        if (targetPath.isEmpty())
+            return instance;
+        var r = targetPath.split("\\.", 2);
+        var targetName = r[0];
+        var nextPath = (r.length > 1 ? r[1] : null);
+        try {
+            var field = instance.getClass().getDeclaredField(targetName);
+            field.setAccessible(true);
+            if (nextPath != null)
+                return getTarget(field.get(instance), nextPath);
+            else
+                return field.get(instance);
+        }
+        catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

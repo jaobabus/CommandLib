@@ -9,21 +9,23 @@ import fun.jaobabus.commandlib.command.SimpleCommandParser;
 import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.GenericGetter;
 import fun.jaobabus.commandlib.util.ParseError;
+import lombok.Getter;
+import lombok.Setter;
 
 
 public interface AbstractRestrictionFactory<ArgumentType, ArgumentList>
 {
     String getName();
 
-    CommandArgumentList<AbstractExecutionContext> getArgumentList();
+    CommandArgumentList getArgumentList();
 
-    AbstractArgumentRestriction<ArgumentType> execute(ArgumentList input);
+    AbstractArgumentRestriction<ArgumentType> execute(ArgumentList input, String path);
 
 
     abstract class Parametrized<ArgumentType, ArgumentList>
             implements AbstractRestrictionFactory<ArgumentType, ArgumentList>
     {
-        protected final CommandArgumentList<AbstractExecutionContext> argumentList;
+        protected final CommandArgumentList argumentList;
 
         public Parametrized() {
             this(DefaultArguments.getDefaultArgumentsRegistry(), DefaultRestrictions.getDefaultRegistry());
@@ -49,15 +51,16 @@ public interface AbstractRestrictionFactory<ArgumentType, ArgumentList>
         }
 
         @Override
-        public CommandArgumentList<AbstractExecutionContext> getArgumentList() {
+        public CommandArgumentList getArgumentList() {
             return argumentList;
         }
     }
 
     @SuppressWarnings("unchecked")
     static <T, AL> AbstractArgumentRestriction<T> execute(String restriction,
-                                                      ArgumentRegistry registry,
-                                                      ArgumentRestrictionRegistry restrictionsRegistry)
+                                                          String path,
+                                                          ArgumentRegistry registry,
+                                                          ArgumentRestrictionRegistry restrictionsRegistry)
     {
         var restName = restriction.split(" ")[0];
         var factory = (AbstractRestrictionFactory<T, AL>) restrictionsRegistry.getRestriction(restName);
@@ -77,6 +80,6 @@ public interface AbstractRestrictionFactory<ArgumentType, ArgumentList>
             throw new RuntimeException(e);
         }
 
-        return factory.execute(parsed);
+        return factory.execute(parsed, path);
     }
 }

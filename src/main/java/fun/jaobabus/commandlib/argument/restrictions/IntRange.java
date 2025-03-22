@@ -10,12 +10,15 @@ import java.util.List;
 public class IntRange extends AbstractRestrictionFactory.Parametrized<Long, IntRange.Arguments>
 {
     @Override
-    public AbstractArgumentRestriction<Long> execute(Arguments input) {
+    public AbstractArgumentRestriction<Long> execute(Arguments input, String path) {
         return new AbstractArgumentRestriction.Parametrized<>() {
             @Override
             public String getName() {
                 return "IntRange";
             }
+
+            @Override
+            public String getPath() { return path; }
 
             @Override
             public boolean checkRestriction(Long value, AbstractExecutionContext context) {

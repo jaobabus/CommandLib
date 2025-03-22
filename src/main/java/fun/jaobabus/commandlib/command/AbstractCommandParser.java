@@ -12,13 +12,13 @@ public interface AbstractCommandParser<ArgumentList, ExecutionContext extends Ab
     /// @param args split by space command line
     /// @return parsed internal argument list
     ArgumentList parseSimple(String[] args,
-                             CommandArgumentList<ExecutionContext> arguments,
+                             CommandArgumentList arguments,
                              ExecutionContext context) throws ParseError;
     /// tabCompleteSimple
     /// @param args split by space command line, last arg is target for complete
     /// @return possible completes
     List<String> tabCompleteSimple(String[] args,
-                                   CommandArgumentList<ExecutionContext> arguments,
+                                   CommandArgumentList arguments,
                                    ExecutionContext context);
 
 }

@@ -15,5 +15,6 @@ public @interface ArgumentRestriction
     }
 
     String restriction() default "null";
+    String path() default "";
 }
 

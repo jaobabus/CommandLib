@@ -1,14 +1,13 @@
 package fun.jaobabus.commandlib.command;
 
 import fun.jaobabus.commandlib.argument.AbstractArgumentRestriction;
-import fun.jaobabus.commandlib.argument.Argument;
-import fun.jaobabus.commandlib.argument.ArgumentDescriptor;
 import fun.jaobabus.commandlib.argument.arguments.ArgumentRegistry;
 import fun.jaobabus.commandlib.argument.restrictions.AbstractRestrictionFactory;
 import fun.jaobabus.commandlib.argument.restrictions.ArgumentRestrictionRegistry;
 import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.ParseError;
+import lombok.Getter;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -42,6 +41,7 @@ public class CommandBuilder<ExecutionContext extends AbstractExecutionContext>
     }
 
     Class<?> clazz;
+    @Getter
     List<CommandDescription<?>> originalStream;
 
     public CommandBuilder(Class<?> clazz)
@@ -60,10 +60,6 @@ public class CommandBuilder<ExecutionContext extends AbstractExecutionContext>
         }
     }
 
-    public List<CommandDescription<?>> getOriginalStream() {
-        return originalStream;
-    }
-
     private <T> CommandDescription<T> parseCommand(Field field,
                                                    ArgumentRegistry registry,
                                                    ArgumentRestrictionRegistry restrictionsRegistry)
@@ -73,7 +69,7 @@ public class CommandBuilder<ExecutionContext extends AbstractExecutionContext>
         if (field.isAnnotationPresent(CommandRestriction.class)) {
             var annotations = field.getAnnotationsByType(CommandRestriction.class);
             for (var annotation : annotations) {
-                restrictions.add(AbstractRestrictionFactory.execute(annotation.restriction(), registry, restrictionsRegistry));
+                restrictions.add(AbstractRestrictionFactory.execute(annotation.restriction(), "", registry, restrictionsRegistry));
             }
         }
 

@@ -9,7 +9,7 @@ import fun.jaobabus.commandlib.util.GenericGetter;
 
 public interface AbstractCommand<ArgumentList, ExecutionContext extends AbstractExecutionContext>
 {
-    CommandArgumentList<ExecutionContext> getArgumentList();
+    CommandArgumentList getArgumentList();
 
     AbstractMessage execute(ArgumentList input,
                             ExecutionContext context);
@@ -20,7 +20,7 @@ public interface AbstractCommand<ArgumentList, ExecutionContext extends Abstract
             implements AbstractCommand<ArgumentList, ExecutionContext>
     {
         protected final SimpleCommandParser<ArgumentList, ExecutionContext> defaultParser;
-        protected final CommandArgumentList<ExecutionContext> argumentList;
+        protected final CommandArgumentList argumentList;
 
         public Parametrized(ArgumentRegistry registry, ArgumentRestrictionRegistry restRegistry) {
             this(null, registry, restRegistry);
@@ -41,7 +41,7 @@ public interface AbstractCommand<ArgumentList, ExecutionContext extends Abstract
         }
 
         @Override
-        public CommandArgumentList<ExecutionContext> getArgumentList() {
+        public CommandArgumentList getArgumentList() {
             return argumentList;
         }
     }

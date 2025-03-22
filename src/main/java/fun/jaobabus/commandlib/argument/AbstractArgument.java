@@ -1,14 +1,13 @@
 package fun.jaobabus.commandlib.argument;
 
-import fun.jaobabus.commandlib.util.AbstractExecutionContext;
-import fun.jaobabus.commandlib.util.AbstractMessage;
+import fun.jaobabus.commandlib.context.BaseArgumentContext;
 import fun.jaobabus.commandlib.util.GenericGetter;
 import fun.jaobabus.commandlib.util.ParseError;
 
 import java.util.List;
 
 
-public interface AbstractArgument<ArgumentType, ExecutionContext extends AbstractExecutionContext>
+public interface AbstractArgument<ArgumentType, ArgumentContext extends BaseArgumentContext>
 {
     enum ParseMode
     {
@@ -27,7 +26,7 @@ public interface AbstractArgument<ArgumentType, ExecutionContext extends Abstrac
     /// @param fragment fragment of argument
     /// @param context execution context
     /// @return possible completes
-    List<ArgumentType> tapComplete(String fragment, ExecutionContext context);
+    List<ArgumentType> tapComplete(String fragment, ArgumentContext context);
 
     /// parseSimple
     /// @param arg full string for parse
@@ -36,7 +35,7 @@ public interface AbstractArgument<ArgumentType, ExecutionContext extends Abstrac
     ///
     /// @return parsed object
     ArgumentType parseSimple(String arg,
-                             ExecutionContext context)
+                             ArgumentContext context)
             throws ParseError;
 
     /// dumpSimple
@@ -44,29 +43,40 @@ public interface AbstractArgument<ArgumentType, ExecutionContext extends Abstrac
     ///
     /// @return string parsable value
     String dumpSimple(ArgumentType arg,
-                       ExecutionContext context);
+                      ArgumentContext context);
 
     Class<ArgumentType> getArgumentClass();
+    Class<ArgumentContext> getContextClass();
 
     // Helper class
-    abstract class Parametrized<T, EC extends AbstractExecutionContext> implements AbstractArgument<T, EC> {
+    abstract class Parametrized<T, AC extends BaseArgumentContext> implements AbstractArgument<T, AC> {
         private final Class<T> argumentCLass;
+        private final Class<AC> contextCLass;
 
         public Parametrized()
         {
-            this(null);
+            this(null, null);
         }
 
-        public Parametrized(Class<T> clazz)
+        public Parametrized(Class<T> clazz, Class<AC> ctxClass)
         {
             if (clazz == null)
-                clazz = GenericGetter.get(getClass());
+                clazz = GenericGetter.get(getClass(), 0);
             this.argumentCLass = clazz;
+
+            if (ctxClass == null)
+                ctxClass = GenericGetter.get(getClass(), 1);
+            this.contextCLass = ctxClass;
         }
 
         @Override
         public Class<T> getArgumentClass() {
             return argumentCLass;
+        }
+
+        @Override
+        public Class<AC> getContextClass() {
+            return contextCLass;
         }
     }
 

@@ -1,7 +1,7 @@
 package fun.jaobabus.commandlib.argument.arguments;
 
 import fun.jaobabus.commandlib.argument.AbstractArgument;
-import fun.jaobabus.commandlib.util.AbstractExecutionContext;
+import fun.jaobabus.commandlib.context.BaseArgumentContext;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,9 +31,9 @@ public class ArgumentRegistry
     }
 
     @SuppressWarnings("unchecked")
-    public <T, EC extends AbstractExecutionContext> AbstractArgument<T, EC> getArgument(Class<T> clazz)
+    public <T, AC extends BaseArgumentContext> AbstractArgument<T, AC> getArgument(Class<T> clazz)
     {
         var arg = argumentsMap.get(clazz.getName());
-        return (AbstractArgument<T, EC>)arg;
+        return (AbstractArgument<T, AC>)arg;
     }
 }
