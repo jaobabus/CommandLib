@@ -102,6 +102,10 @@ public class ArgumentBuilder<ArgumentList, ExecutionContext extends AbstractExec
                 if (argument == null)
                     throw new RuntimeException("Unregistered argument type " + field.getType() + " for " + argId);
                 break;
+            case FlagAppendValue:
+                argument = (AbstractArgument<T, ExecutionContext>)registry.getArgument(field.getType().getComponentType());
+                if (argument == null)
+                    throw new RuntimeException("Unregistered argument type " + field.getType().getComponentType() + " for " + argId);
             case FlagStoreTrue:
             case FlagStoreValue:
                 argument = (AbstractArgument<T, ExecutionContext>)registry.getArgument(field.getType());

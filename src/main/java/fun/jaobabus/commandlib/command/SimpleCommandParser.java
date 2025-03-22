@@ -7,10 +7,7 @@ import fun.jaobabus.commandlib.util.AbstractExecutionContext;
 import fun.jaobabus.commandlib.util.AbstractMessage;
 import fun.jaobabus.commandlib.util.ParseError;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 public class SimpleCommandParser<ArgumentList, ExecutionContext extends AbstractExecutionContext>
@@ -25,6 +22,7 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
         ArgumentDescriptor<?, ExecutionContext> nextArgument = null;
         List<Object> varargs = new ArrayList<>();
         Set<String> usedFlags = new HashSet<>();
+        Map<String, List<Object>> flagsVarargs = new HashMap<>();
         try {
             var argIterator = arguments.arguments.iterator();
             Class<ArgumentList> clazz = (Class<ArgumentList>) arguments.getType();
@@ -61,6 +59,15 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                             var result = flag.argument.parseSimple(value, context);
                             field.set(argList, result);
                             arg = "";
+                            usedFlags.add(name);
+                            break;
+                        }
+                        else if (flag.action.equals(Argument.Action.FlagAppendValue)) {
+                            var value = arg.substring(index + 1);
+                            var result = flag.argument.parseSimple(value, context);
+                            flagsVarargs.computeIfAbsent(name, p -> new ArrayList<>()).add(result);
+                            arg = "";
+                            usedFlags.add(name);
                             break;
                         }
                         else
@@ -130,7 +137,16 @@ public class SimpleCommandParser<ArgumentList, ExecutionContext extends Abstract
                 var field = clazz.getField(flagKey);
                 var result = flag.argument.parseSimple(flag.defaultValue, context);
                 field.setAccessible(true);
-                field.set(argList, result);
+                if (field.get(argList) == null)
+                    field.set(argList, result);
+            }
+
+            for (var key : flagsVarargs.keySet()) {
+                var field = clazz.getField(key);
+                var vararg = flagsVarargs.get(key);
+                field.setAccessible(true);
+                var original = java.lang.reflect.Array.newInstance(field.getType().getComponentType(), 0);
+                field.set(argList, vararg.toArray((Object[])original));
             }
         }
         catch (NoSuchFieldException | IllegalAccessException e) {
